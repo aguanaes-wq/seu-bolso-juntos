@@ -1,27 +1,7 @@
 import { motion } from "framer-motion";
-import { Target, Plus, TrendingUp, CheckCircle2 } from "lucide-react";
+import { Target, Plus, TrendingUp, CheckCircle2, Loader2, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-
-// Mock data
-const mockGoals = [
-  {
-    id: "1",
-    title: "Economizar para viagem",
-    target: 3000,
-    current: 1850,
-    deadline: "Março 2026",
-    category: "Economia",
-  },
-  {
-    id: "2",
-    title: "Limite de gastos com lazer",
-    target: 500,
-    current: 432.1,
-    deadline: "Este mês",
-    category: "Controle",
-    isLimit: true,
-  },
-];
+import { useFinance } from "@/contexts/FinanceContext";
 
 function formatCurrency(value: number) {
   return new Intl.NumberFormat("pt-BR", {
@@ -31,6 +11,20 @@ function formatCurrency(value: number) {
 }
 
 export function GoalsView() {
+  const { goals, goalsLoading, deleteGoal } = useFinance();
+
+  const handleDeleteGoal = async (id: string) => {
+    await deleteGoal(id);
+  };
+
+  if (goalsLoading) {
+    return (
+      <div className="flex-1 flex items-center justify-center">
+        <Loader2 className="w-8 h-8 text-primary animate-spin" />
+      </div>
+    );
+  }
+
   return (
     <div className="flex-1 overflow-y-auto px-4 py-6 space-y-6 pb-24">
       {/* Header */}
@@ -55,10 +49,16 @@ export function GoalsView() {
 
       {/* Goals list */}
       <div className="space-y-4">
-        {mockGoals.map((goal, index) => {
-          const progress = Math.min((goal.current / goal.target) * 100, 100);
-          const isNearLimit = goal.isLimit && progress >= 80;
+        {goals.map((goal, index) => {
+          const progress = Math.min((Number(goal.current_amount) / Number(goal.target_amount)) * 100, 100);
+          const isLimit = goal.type === "limit";
+          const isNearLimit = isLimit && progress >= 80;
           const isCompleted = progress >= 100;
+
+          // Calculate deadline text
+          const deadlineText = goal.end_date 
+            ? new Date(goal.end_date).toLocaleDateString("pt-BR", { month: "long", year: "numeric" })
+            : goal.period === "month" ? "Este mês" : goal.period;
 
           return (
             <motion.div
@@ -67,7 +67,7 @@ export function GoalsView() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.1 }}
               className={cn(
-                "p-4 rounded-2xl border",
+                "p-4 rounded-2xl border relative",
                 isCompleted
                   ? "bg-income/5 border-income/20"
                   : isNearLimit
@@ -75,7 +75,15 @@ export function GoalsView() {
                   : "bg-card border-border"
               )}
             >
-              <div className="flex items-start gap-3">
+              {/* Delete button */}
+              <button
+                onClick={() => handleDeleteGoal(goal.id)}
+                className="absolute top-3 right-3 p-2 rounded-lg hover:bg-muted/50 text-muted-foreground hover:text-expense transition-colors"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+
+              <div className="flex items-start gap-3 pr-8">
                 <div
                   className={cn(
                     "w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0",
@@ -109,13 +117,13 @@ export function GoalsView() {
                       {goal.title}
                     </h3>
                     <span className="text-xs text-muted-foreground flex-shrink-0 ml-2">
-                      {goal.deadline}
+                      {deadlineText}
                     </span>
                   </div>
 
                   <div className="flex items-center justify-between text-sm mb-2">
                     <span className="text-muted-foreground">
-                      {formatCurrency(goal.current)} de {formatCurrency(goal.target)}
+                      {formatCurrency(Number(goal.current_amount))} de {formatCurrency(Number(goal.target_amount))}
                     </span>
                     <span
                       className={cn(
@@ -162,7 +170,7 @@ export function GoalsView() {
       </div>
 
       {/* Empty state hint */}
-      {mockGoals.length === 0 && (
+      {goals.length === 0 && (
         <div className="text-center py-12">
           <div className="w-16 h-16 rounded-2xl bg-muted/50 flex items-center justify-center mx-auto mb-4">
             <Target className="w-8 h-8 text-muted-foreground" />
