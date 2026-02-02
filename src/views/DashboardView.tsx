@@ -1,19 +1,7 @@
 import { motion } from "framer-motion";
-import { TrendingUp, TrendingDown, Wallet, ArrowRight } from "lucide-react";
+import { TrendingUp, TrendingDown, Wallet, ArrowRight, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-
-// Mock data - will be replaced with real data from the database
-const mockSummary = {
-  income: 5500,
-  expenses: 3245.8,
-  balance: 2254.2,
-  topCategories: [
-    { name: "Alimentação", amount: 1234.5, percentage: 38 },
-    { name: "Transporte", amount: 654.2, percentage: 20 },
-    { name: "Casa", amount: 520.0, percentage: 16 },
-    { name: "Lazer", amount: 432.1, percentage: 13 },
-  ],
-};
+import { useFinance } from "@/contexts/FinanceContext";
 
 function formatCurrency(value: number) {
   return new Intl.NumberFormat("pt-BR", {
@@ -23,8 +11,30 @@ function formatCurrency(value: number) {
 }
 
 export function DashboardView() {
-  const { income, expenses, balance, topCategories } = mockSummary;
+  const { summary, categoryBreakdown, transactionsLoading } = useFinance();
+  const { income, expenses, balance } = summary;
   const isPositive = balance >= 0;
+
+  // Convert category breakdown to array and sort
+  const topCategories = Object.entries(categoryBreakdown)
+    .map(([name, amount]) => ({
+      name,
+      amount,
+      percentage: expenses > 0 ? Math.round((amount / expenses) * 100) : 0,
+    }))
+    .sort((a, b) => b.amount - a.amount)
+    .slice(0, 4);
+
+  const currentMonth = new Date().toLocaleDateString("pt-BR", { month: "long" });
+  const capitalizedMonth = currentMonth.charAt(0).toUpperCase() + currentMonth.slice(1);
+
+  if (transactionsLoading) {
+    return (
+      <div className="flex-1 flex items-center justify-center">
+        <Loader2 className="w-8 h-8 text-primary animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="flex-1 overflow-y-auto px-4 py-6 space-y-6 pb-24">
@@ -34,7 +44,7 @@ export function DashboardView() {
         animate={{ opacity: 1, y: 0 }}
         className="text-center"
       >
-        <p className="text-sm text-muted-foreground mb-1">Resumo de Janeiro</p>
+        <p className="text-sm text-muted-foreground mb-1">Resumo de {capitalizedMonth}</p>
         <h2 className="text-3xl font-bold text-foreground">
           {formatCurrency(balance)}
         </h2>
@@ -86,50 +96,68 @@ export function DashboardView() {
       </div>
 
       {/* Top categories */}
-      <motion.div
-        initial={{ opacity: 0, y: 12 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.2 }}
-        className="bg-card rounded-2xl border border-border p-4"
-      >
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="font-semibold text-foreground">Principais gastos</h3>
-          <button className="flex items-center gap-1 text-sm text-primary font-medium">
-            Ver tudo <ArrowRight className="w-4 h-4" />
-          </button>
-        </div>
+      {topCategories.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="bg-card rounded-2xl border border-border p-4"
+        >
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-semibold text-foreground">Principais gastos</h3>
+            <button className="flex items-center gap-1 text-sm text-primary font-medium">
+              Ver tudo <ArrowRight className="w-4 h-4" />
+            </button>
+          </div>
 
-        <div className="space-y-3">
-          {topCategories.map((category, index) => (
-            <motion.div
-              key={category.name}
-              initial={{ opacity: 0, x: -8 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.25 + index * 0.05 }}
-              className="flex items-center gap-3"
-            >
-              <div className="flex-1">
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-sm font-medium text-foreground">
-                    {category.name}
-                  </span>
-                  <span className="text-sm text-muted-foreground">
-                    {formatCurrency(category.amount)}
-                  </span>
+          <div className="space-y-3">
+            {topCategories.map((category, index) => (
+              <motion.div
+                key={category.name}
+                initial={{ opacity: 0, x: -8 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.25 + index * 0.05 }}
+                className="flex items-center gap-3"
+              >
+                <div className="flex-1">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-sm font-medium text-foreground">
+                      {category.name}
+                    </span>
+                    <span className="text-sm text-muted-foreground">
+                      {formatCurrency(category.amount)}
+                    </span>
+                  </div>
+                  <div className="h-2 bg-muted rounded-full overflow-hidden">
+                    <motion.div
+                      initial={{ width: 0 }}
+                      animate={{ width: `${category.percentage}%` }}
+                      transition={{ delay: 0.4 + index * 0.05, duration: 0.5 }}
+                      className="h-full bg-primary rounded-full"
+                    />
+                  </div>
                 </div>
-                <div className="h-2 bg-muted rounded-full overflow-hidden">
-                  <motion.div
-                    initial={{ width: 0 }}
-                    animate={{ width: `${category.percentage}%` }}
-                    transition={{ delay: 0.4 + index * 0.05, duration: 0.5 }}
-                    className="h-full bg-primary rounded-full"
-                  />
-                </div>
-              </div>
-            </motion.div>
-          ))}
-        </div>
-      </motion.div>
+              </motion.div>
+            ))}
+          </div>
+        </motion.div>
+      )}
+
+      {/* Empty state */}
+      {topCategories.length === 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="bg-card rounded-2xl border border-border p-6 text-center"
+        >
+          <Wallet className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
+          <h3 className="font-semibold text-foreground mb-1">Nenhum gasto ainda</h3>
+          <p className="text-sm text-muted-foreground">
+            Registre transações no chat para ver o resumo aqui.
+          </p>
+        </motion.div>
+      )}
 
       {/* Quick tip */}
       <motion.div
@@ -147,7 +175,7 @@ export function DashboardView() {
               Dica do agente
             </p>
             <p className="text-sm text-muted-foreground">
-              Vocês gastaram 15% a menos com alimentação comparado ao mês passado. Continuem assim!
+              Use o chat para registrar gastos rapidamente: "gastei 50 no mercado" ou "uber 32".
             </p>
           </div>
         </div>

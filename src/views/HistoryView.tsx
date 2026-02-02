@@ -9,9 +9,12 @@ import {
   Receipt,
   Tv,
   GraduationCap,
-  MoreHorizontal 
+  MoreHorizontal,
+  Loader2,
+  Trash2
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useFinance } from "@/contexts/FinanceContext";
 
 // Category icon mapping
 const categoryIcons: Record<string, React.ElementType> = {
@@ -25,56 +28,8 @@ const categoryIcons: Record<string, React.ElementType> = {
   Compras: ShoppingBag,
   Assinaturas: Tv,
   Outros: MoreHorizontal,
+  Receita: Receipt,
 };
-
-// Mock data
-const mockTransactions = [
-  {
-    id: "1",
-    description: "Uber para o trabalho",
-    amount: 32,
-    type: "expense" as const,
-    category: "Transporte",
-    date: new Date(),
-    person: "Você",
-  },
-  {
-    id: "2",
-    description: "Almoço restaurante",
-    amount: 45.9,
-    type: "expense" as const,
-    category: "Alimentação",
-    date: new Date(),
-    person: "Você",
-  },
-  {
-    id: "3",
-    description: "Salário",
-    amount: 2750,
-    type: "income" as const,
-    category: "Receita",
-    date: new Date(Date.now() - 86400000),
-    person: "Parceiro(a)",
-  },
-  {
-    id: "4",
-    description: "Mercado da semana",
-    amount: 234.5,
-    type: "expense" as const,
-    category: "Alimentação",
-    date: new Date(Date.now() - 86400000),
-    person: "Parceiro(a)",
-  },
-  {
-    id: "5",
-    description: "Netflix",
-    amount: 55.9,
-    type: "expense" as const,
-    category: "Assinaturas",
-    date: new Date(Date.now() - 2 * 86400000),
-    person: "Você",
-  },
-];
 
 function formatCurrency(value: number) {
   return new Intl.NumberFormat("pt-BR", {
@@ -83,38 +38,51 @@ function formatCurrency(value: number) {
   }).format(value);
 }
 
-function formatDate(date: Date) {
+function formatDate(dateString: string) {
+  const date = new Date(dateString);
   const today = new Date();
   const yesterday = new Date(today);
   yesterday.setDate(yesterday.getDate() - 1);
 
-  if (date.toDateString() === today.toDateString()) {
+  // Add timezone offset to compare dates correctly
+  const dateLocal = new Date(date.getTime() + date.getTimezoneOffset() * 60000);
+  
+  if (dateLocal.toDateString() === today.toDateString()) {
     return "Hoje";
   }
-  if (date.toDateString() === yesterday.toDateString()) {
+  if (dateLocal.toDateString() === yesterday.toDateString()) {
     return "Ontem";
   }
-  return date.toLocaleDateString("pt-BR", {
+  return dateLocal.toLocaleDateString("pt-BR", {
     day: "numeric",
     month: "short",
   });
 }
 
-// Group transactions by date
-function groupByDate(transactions: typeof mockTransactions) {
-  const groups: Record<string, typeof mockTransactions> = {};
-  
-  transactions.forEach((t) => {
-    const key = formatDate(t.date);
-    if (!groups[key]) groups[key] = [];
-    groups[key].push(t);
-  });
-
-  return Object.entries(groups);
-}
-
 export function HistoryView() {
-  const groupedTransactions = groupByDate(mockTransactions);
+  const { transactions, transactionsLoading, deleteTransaction } = useFinance();
+
+  const handleDelete = async (id: string) => {
+    await deleteTransaction(id);
+  };
+
+  // Group transactions by date
+  const groupedTransactions = transactions.reduce((groups, transaction) => {
+    const key = formatDate(transaction.date);
+    if (!groups[key]) groups[key] = [];
+    groups[key].push(transaction);
+    return groups;
+  }, {} as Record<string, typeof transactions>);
+
+  const groupedEntries = Object.entries(groupedTransactions);
+
+  if (transactionsLoading) {
+    return (
+      <div className="flex-1 flex items-center justify-center">
+        <Loader2 className="w-8 h-8 text-primary animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="flex-1 overflow-y-auto px-4 py-6 space-y-6 pb-24">
@@ -131,7 +99,7 @@ export function HistoryView() {
 
       {/* Transaction groups */}
       <div className="space-y-6">
-        {groupedTransactions.map(([date, transactions], groupIndex) => (
+        {groupedEntries.map(([date, transactionGroup], groupIndex) => (
           <motion.div
             key={date}
             initial={{ opacity: 0, y: 12 }}
@@ -142,7 +110,7 @@ export function HistoryView() {
               {date}
             </h3>
             <div className="space-y-2">
-              {transactions.map((transaction, index) => {
+              {transactionGroup.map((transaction, index) => {
                 const Icon =
                   categoryIcons[transaction.category] || MoreHorizontal;
                 const isIncome = transaction.type === "income";
@@ -153,7 +121,7 @@ export function HistoryView() {
                     initial={{ opacity: 0, x: -8 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: groupIndex * 0.1 + index * 0.05 }}
-                    className="flex items-center gap-3 p-3 rounded-xl bg-card border border-border hover:shadow-soft transition-shadow cursor-pointer"
+                    className="flex items-center gap-3 p-3 rounded-xl bg-card border border-border hover:shadow-soft transition-shadow group"
                   >
                     {/* Category icon */}
                     <div
@@ -188,8 +156,16 @@ export function HistoryView() {
                       )}
                     >
                       {isIncome ? "+" : "-"}
-                      {formatCurrency(transaction.amount)}
+                      {formatCurrency(Number(transaction.amount))}
                     </span>
+
+                    {/* Delete button */}
+                    <button
+                      onClick={() => handleDelete(transaction.id)}
+                      className="p-2 rounded-lg opacity-0 group-hover:opacity-100 hover:bg-muted/50 text-muted-foreground hover:text-expense transition-all"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
                   </motion.div>
                 );
               })}
@@ -199,7 +175,7 @@ export function HistoryView() {
       </div>
 
       {/* Empty state */}
-      {mockTransactions.length === 0 && (
+      {transactions.length === 0 && (
         <div className="text-center py-12">
           <div className="w-16 h-16 rounded-2xl bg-muted/50 flex items-center justify-center mx-auto mb-4">
             <Receipt className="w-8 h-8 text-muted-foreground" />

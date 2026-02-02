@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -33,13 +34,39 @@ REGRAS PARA REGISTROS:
 - Inferir categoria por palavras-chave (mercado→Alimentação, uber→Transporte, etc.)
 - Só pergunte quando faltar dado essencial (valor é obrigatório)
 
+IMPORTANTE - AÇÕES DO SISTEMA:
+Quando o usuário solicitar uma ação (registrar transação, criar meta, apagar, editar), você DEVE incluir um bloco JSON no final da sua resposta para que o sistema execute a ação.
+
+Para REGISTRAR TRANSAÇÃO, inclua:
+\`\`\`json
+{"action":"add_transaction","data":{"description":"descrição","amount":valor,"type":"expense|income","category":"categoria","date":"YYYY-MM-DD","person":"Você"}}
+\`\`\`
+
+Para CRIAR META, inclua:
+\`\`\`json
+{"action":"add_goal","data":{"title":"título da meta","target_amount":valor,"current_amount":0,"type":"savings|limit","category":"categoria ou null","period":"month"}}
+\`\`\`
+
+Para APAGAR TRANSAÇÃO (última ou específica), inclua:
+\`\`\`json
+{"action":"delete_transaction","data":{"description":"descrição para identificar"}}
+\`\`\`
+
+Para APAGAR META, inclua:
+\`\`\`json
+{"action":"delete_goal","data":{"title":"título para identificar"}}
+\`\`\`
+
 FORMATO DE RESPOSTA AO REGISTRAR:
 1) Confirmação curta do que foi entendido
 2) Categoria sugerida + data (se inferida)
-3) Pergunta de confirmação APENAS se precisar
+3) O bloco JSON da ação (obrigatório para ações)
 
 Exemplo ideal:
-"Beleza! Registrei um gasto de R$ 32,00 em Transporte (Uber) para hoje. Se quiser, posso trocar a categoria."
+"Beleza! Registrei um gasto de R$ 32,00 em Transporte (Uber) para hoje.
+\`\`\`json
+{"action":"add_transaction","data":{"description":"Uber","amount":32,"type":"expense","category":"Transporte","date":"2026-02-02","person":"Você"}}
+\`\`\`"
 
 CAPACIDADES:
 A) Registrar transações (gasto/receita) via chat
@@ -66,7 +93,8 @@ Quando o usuário disser "errei", "corrige", "apaga", "desfaz", "edita":
 2) Pedir confirmação se houver risco
 3) Fazer a alteração e confirmar
 
-Lembre-se: seja breve, gentil e útil. Responda SEMPRE em português do Brasil.`;
+Lembre-se: seja breve, gentil e útil. Responda SEMPRE em português do Brasil.
+A data de hoje é: ${new Date().toISOString().split('T')[0]}`;
 
 serve(async (req) => {
   // Handle CORS preflight
