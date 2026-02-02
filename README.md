@@ -160,4 +160,7 @@ Este projeto foi construído com:
 
 <img width="347" height="780" alt="image" src="https://github.com/user-attachments/assets/6801091b-c4ad-40d5-bdf1-ea3134bb787d" />
 
+## O que o app faz?
+
+Registra por meio de chat, usando linguagem natural, as despesas e receitas de um casal, mostra um resumo com o total das despesas e receitas e o total por categoria, cria metas também via chat e mostra um histórico dos gastos e ganhos da família.
 
