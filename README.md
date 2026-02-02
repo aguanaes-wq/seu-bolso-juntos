@@ -129,7 +129,16 @@ Mantive um tom gentil e neutro?
 
 ## Informações do projeto
 
-**URL**: https://lovable.dev/projects/46bc7edb-81fc-4203-9fc6-fb9eaa442a89
+**URL do projeto**: https://lovable.dev/projects/46bc7edb-81fc-4203-9fc6-fb9eaa442a89
+**URL da aplicação**: https://seu-bolso-juntos.lovable.app/
+
+## Interações com o Lovable
+
+> Crie um aplicativo para dispositivos móveis, que funcione em sistemas Android e iOS, chamado AGENTE FINANCEIRO FAMILIAR, um assistente conversacional para controle de finanças pessoais compartilhadas (casal/família) com DESIGN UNIVERSAL. {PRD completo acima}
+
+> Olá, o aplicativo ficou massa! Obrigado. Porém, ele ainda não está funcionando. Quando eu peço para incluir uma despesa ele diz que incluiu e não aparece no Histórico e não altera os valores no Resumo. Quando eu peço pra incluir uma meta ele diz que incluiu, mas, não aparece na lista de Metas. Além disso, você cadastrou algumas transações de exemplo e não consigo apagá-las.
+
+> Adicione autenticação com login para que cada pessoa da família seja identificada separadamente (essa interação não foi executada porque os créditos acabaram).
 
 ## Quais tecnologias são usadas nesse projeto?
 
@@ -140,3 +149,15 @@ Este projeto foi construído com:
 - React
 - shadcn-ui
 - Tailwind CSS
+
+## Imagens de tela
+
+<img width="351" height="781" alt="image" src="https://github.com/user-attachments/assets/3c811f97-952a-4059-9381-0366d13ba91d" />
+
+<img width="353" height="782" alt="image" src="https://github.com/user-attachments/assets/622a2970-89d3-4337-a5aa-6bc9742d022f" />
+
+<img width="350" height="782" alt="image" src="https://github.com/user-attachments/assets/f6ba388c-2e63-4933-8fc5-f4e42c9ec07e" />
+
+<img width="347" height="780" alt="image" src="https://github.com/user-attachments/assets/6801091b-c4ad-40d5-bdf1-ea3134bb787d" />
+
+
