@@ -164,3 +164,6 @@ Este projeto foi construído com:
 
 Registra por meio de chat, usando linguagem natural, as despesas e receitas de um casal, mostra um resumo com o total das despesas e receitas e o total por categoria, cria metas também via chat e mostra um histórico dos gastos e ganhos da família.
 
+## Reflexões
+
+Foi um experiência interessante e me surpreendeu, principalmente o Lovable, apesar da limitação de interações ser muito restrita, ele criou um aplicativo funcional em poucos minutos.
