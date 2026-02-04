@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 
 export interface Message {
   id: string;
@@ -7,6 +8,7 @@ export interface Message {
   content: string;
   timestamp: Date;
   status: "sending" | "sent" | "error";
+  imageUrl?: string;
 }
 
 interface ActionData {
@@ -40,7 +42,7 @@ function extractActions(content: string): { cleanContent: string; actions: Actio
 }
 
 // Execute actions from the AI response
-async function executeActions(actions: ActionData[]) {
+async function executeActions(actions: ActionData[], memberId?: string) {
   for (const action of actions) {
     console.log("Executing action:", action.action, action.data);
     
@@ -54,6 +56,8 @@ async function executeActions(actions: ActionData[]) {
             category: string;
             date: string;
             person: string;
+            payment_method?: string;
+            location?: string;
           };
           
           const { data, error } = await supabase
@@ -65,6 +69,9 @@ async function executeActions(actions: ActionData[]) {
               category: transactionData.category,
               date: transactionData.date,
               person: transactionData.person,
+              payment_method: transactionData.payment_method || null,
+              location: transactionData.location || null,
+              member_id: memberId || null,
             })
             .select()
             .single();
@@ -73,6 +80,26 @@ async function executeActions(actions: ActionData[]) {
             console.error("Error adding transaction:", error);
           } else {
             console.log("Transaction added:", data);
+            
+            // Update goals that match this transaction category
+            if (transactionData.type === "expense") {
+              const { data: goals } = await supabase
+                .from("goals")
+                .select("*")
+                .eq("type", "limit");
+
+              if (goals) {
+                for (const goal of goals) {
+                  if (goal.category === transactionData.category || goal.category === null) {
+                    const newAmount = (goal.current_amount || 0) + Number(transactionData.amount);
+                    await supabase
+                      .from("goals")
+                      .update({ current_amount: newAmount })
+                      .eq("id", goal.id);
+                  }
+                }
+              }
+            }
           }
           break;
         }
@@ -96,6 +123,7 @@ async function executeActions(actions: ActionData[]) {
               type: goalData.type,
               category: goalData.category,
               period: goalData.period,
+              member_id: memberId || null,
             })
             .select()
             .single();
@@ -104,6 +132,34 @@ async function executeActions(actions: ActionData[]) {
             console.error("Error adding goal:", error);
           } else {
             console.log("Goal added:", data);
+          }
+          break;
+        }
+
+        case "add_category": {
+          const categoryData = action.data as {
+            name: string;
+            icon?: string;
+          };
+          
+          const { data, error } = await supabase
+            .from("categories")
+            .insert({
+              name: categoryData.name,
+              icon: categoryData.icon || "MoreHorizontal",
+              is_default: false,
+            })
+            .select()
+            .single();
+          
+          if (error) {
+            if (error.code === "23505") {
+              console.log("Category already exists");
+            } else {
+              console.error("Error adding category:", error);
+            }
+          } else {
+            console.log("Category added:", data);
           }
           break;
         }
@@ -169,8 +225,9 @@ export function useChat() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const { currentMember } = useAuth();
 
-  const sendMessage = useCallback(async (content: string) => {
+  const sendMessage = useCallback(async (content: string, imageBase64?: string) => {
     setError(null);
 
     // Add user message
@@ -180,6 +237,7 @@ export function useChat() {
       content,
       timestamp: new Date(),
       status: "sent",
+      imageUrl: imageBase64,
     };
     
     setMessages((prev) => [...prev, userMessage]);
@@ -194,15 +252,23 @@ export function useChat() {
     try {
       abortControllerRef.current = new AbortController();
 
+      const requestBody: Record<string, unknown> = {
+        messages: [...history, { role: "user", content }],
+        memberName: currentMember?.name || "Você",
+      };
+
+      // Add image if provided
+      if (imageBase64) {
+        requestBody.image = imageBase64;
+      }
+
       const response = await fetch(CHAT_URL, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
         },
-        body: JSON.stringify({
-          messages: [...history, { role: "user", content }],
-        }),
+        body: JSON.stringify(requestBody),
         signal: abortControllerRef.current.signal,
       });
 
@@ -298,7 +364,7 @@ export function useChat() {
 
       // Execute any actions from the AI response
       if (actions.length > 0) {
-        await executeActions(actions);
+        await executeActions(actions, currentMember?.id);
       }
 
     } catch (err) {
@@ -324,7 +390,7 @@ export function useChat() {
       setIsLoading(false);
       abortControllerRef.current = null;
     }
-  }, [messages]);
+  }, [messages, currentMember]);
 
   const clearMessages = useCallback(() => {
     setMessages([]);

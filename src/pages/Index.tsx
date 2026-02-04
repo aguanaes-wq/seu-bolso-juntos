@@ -6,9 +6,25 @@ import { DashboardView } from "@/views/DashboardView";
 import { GoalsView } from "@/views/GoalsView";
 import { HistoryView } from "@/views/HistoryView";
 import { FinanceProvider } from "@/contexts/FinanceContext";
+import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import { LoginPage } from "@/pages/LoginPage";
+import { Loader2 } from "lucide-react";
 
-const Index = () => {
+function MainApp() {
+  const { isAuthenticated, isLoading } = useAuth();
   const [activeTab, setActiveTab] = useState<NavTab>("chat");
+
+  if (isLoading) {
+    return (
+      <div className="flex flex-col h-screen bg-background items-center justify-center">
+        <Loader2 className="w-8 h-8 text-primary animate-spin" />
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return <LoginPage />;
+  }
 
   const renderView = () => {
     switch (activeTab) {
@@ -52,6 +68,14 @@ const Index = () => {
         <BottomNav activeTab={activeTab} onTabChange={setActiveTab} />
       </div>
     </FinanceProvider>
+  );
+}
+
+const Index = () => {
+  return (
+    <AuthProvider>
+      <MainApp />
+    </AuthProvider>
   );
 };
 

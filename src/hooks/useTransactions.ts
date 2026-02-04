@@ -9,6 +9,9 @@ export interface Transaction {
   category: string;
   date: string;
   person: string;
+  payment_method: string | null;
+  location: string | null;
+  member_id: string | null;
   created_at: string;
   updated_at: string;
 }

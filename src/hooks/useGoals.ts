@@ -11,6 +11,7 @@ export interface Goal {
   period: string;
   start_date: string;
   end_date: string | null;
+  member_id: string | null;
   created_at: string;
   updated_at: string;
 }
