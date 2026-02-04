@@ -51,7 +51,7 @@ export function ChatView() {
 
       {/* Input area */}
       <ChatInput
-        onSend={sendMessage}
+        onSend={(message, imageBase64) => sendMessage(message, imageBase64)}
         disabled={isLoading}
         placeholder="Ex: gastei 45 no almoço..."
       />

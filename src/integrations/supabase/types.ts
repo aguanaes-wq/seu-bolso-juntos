@@ -14,6 +14,54 @@ export type Database = {
   }
   public: {
     Tables: {
+      categories: {
+        Row: {
+          created_at: string
+          icon: string | null
+          id: string
+          is_default: boolean | null
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          icon?: string | null
+          id?: string
+          is_default?: boolean | null
+          name: string
+        }
+        Update: {
+          created_at?: string
+          icon?: string | null
+          id?: string
+          is_default?: boolean | null
+          name?: string
+        }
+        Relationships: []
+      }
+      family_members: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          pin_hash: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          pin_hash: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          pin_hash?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       goals: {
         Row: {
           category: string | null
@@ -21,6 +69,7 @@ export type Database = {
           current_amount: number
           end_date: string | null
           id: string
+          member_id: string | null
           period: string
           start_date: string
           target_amount: number
@@ -34,6 +83,7 @@ export type Database = {
           current_amount?: number
           end_date?: string | null
           id?: string
+          member_id?: string | null
           period?: string
           start_date?: string
           target_amount: number
@@ -47,6 +97,7 @@ export type Database = {
           current_amount?: number
           end_date?: string | null
           id?: string
+          member_id?: string | null
           period?: string
           start_date?: string
           target_amount?: number
@@ -54,7 +105,15 @@ export type Database = {
           type?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "goals_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "family_members"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       transactions: {
         Row: {
@@ -64,6 +123,9 @@ export type Database = {
           date: string
           description: string
           id: string
+          location: string | null
+          member_id: string | null
+          payment_method: string | null
           person: string
           type: string
           updated_at: string
@@ -75,6 +137,9 @@ export type Database = {
           date?: string
           description: string
           id?: string
+          location?: string | null
+          member_id?: string | null
+          payment_method?: string | null
           person?: string
           type: string
           updated_at?: string
@@ -86,11 +151,22 @@ export type Database = {
           date?: string
           description?: string
           id?: string
+          location?: string | null
+          member_id?: string | null
+          payment_method?: string | null
           person?: string
           type?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "transactions_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "family_members"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {

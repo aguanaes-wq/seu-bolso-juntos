@@ -85,7 +85,8 @@ export function HistoryView() {
   }
 
   return (
-    <div className="flex-1 overflow-y-auto px-4 py-6 space-y-6 pb-24">
+    <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+      <div className="flex-1 overflow-y-auto px-4 py-6 space-y-6">
       {/* Header */}
       <motion.div
         initial={{ opacity: 0, y: 12 }}
@@ -145,7 +146,13 @@ export function HistoryView() {
                       </p>
                       <p className="text-xs text-muted-foreground">
                         {transaction.category} • {transaction.person}
+                        {transaction.payment_method && ` • ${transaction.payment_method}`}
                       </p>
+                      {transaction.location && (
+                        <p className="text-xs text-muted-foreground/70 truncate">
+                          📍 {transaction.location}
+                        </p>
+                      )}
                     </div>
 
                     {/* Amount */}
@@ -175,19 +182,23 @@ export function HistoryView() {
       </div>
 
       {/* Empty state */}
-      {transactions.length === 0 && (
-        <div className="text-center py-12">
-          <div className="w-16 h-16 rounded-2xl bg-muted/50 flex items-center justify-center mx-auto mb-4">
-            <Receipt className="w-8 h-8 text-muted-foreground" />
+        {transactions.length === 0 && (
+          <div className="text-center py-12">
+            <div className="w-16 h-16 rounded-2xl bg-muted/50 flex items-center justify-center mx-auto mb-4">
+              <Receipt className="w-8 h-8 text-muted-foreground" />
+            </div>
+            <h3 className="text-lg font-medium text-foreground mb-2">
+              Nenhuma transação
+            </h3>
+            <p className="text-sm text-muted-foreground max-w-xs mx-auto">
+              Comece registrando gastos no chat para ver seu histórico aqui.
+            </p>
           </div>
-          <h3 className="text-lg font-medium text-foreground mb-2">
-            Nenhuma transação
-          </h3>
-          <p className="text-sm text-muted-foreground max-w-xs mx-auto">
-            Comece registrando gastos no chat para ver seu histórico aqui.
-          </p>
-        </div>
-      )}
+        )}
+        
+        {/* Bottom padding for scrolling */}
+        <div className="h-8" />
+      </div>
     </div>
   );
 }
