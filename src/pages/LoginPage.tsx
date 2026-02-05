@@ -13,11 +13,14 @@ import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
 
 type Mode = "select" | "login" | "register";
+ type LoginType = "existing" | "new";
 
 export function LoginPage() {
   const { login, register, members, isLoading } = useAuth();
   const [mode, setMode] = useState<Mode>("select");
+   const [loginType, setLoginType] = useState<LoginType>("existing");
   const [selectedMember, setSelectedMember] = useState<string>("");
+   const [loginName, setLoginName] = useState("");
   const [newName, setNewName] = useState("");
   const [pin, setPin] = useState("");
   const [error, setError] = useState("");
@@ -31,6 +34,13 @@ export function LoginPage() {
   };
 
   const handleLogin = async () => {
+     const nameToUse = selectedMember || loginName.trim();
+     
+     if (!nameToUse) {
+       setError("Digite seu nome");
+       return;
+     }
+ 
     if (pin.length !== 4) {
       setError("Digite os 4 números do PIN");
       return;
@@ -39,7 +49,7 @@ export function LoginPage() {
     setIsSubmitting(true);
     setError("");
 
-    const result = await login(selectedMember, pin);
+     const result = await login(nameToUse, pin);
 
     setIsSubmitting(false);
 
@@ -129,20 +139,52 @@ export function LoginPage() {
                 </div>
               )}
 
-              {members.length < 2 && (
+               {/* Show login/register options when no members are listed */}
+               {members.length === 0 && (
+                 <div className="space-y-3">
+                   <Button
+                     variant="default"
+                     className="w-full h-14 gap-2 text-lg"
+                     onClick={() => {
+                       setLoginType("existing");
+                       setMode("login");
+                       setError("");
+                       setPin("");
+                       setLoginName("");
+                     }}
+                   >
+                     <LogIn className="w-5 h-5" />
+                     Já tenho cadastro
+                   </Button>
+ 
+                   <Button
+                     variant="outline"
+                     className="w-full h-14 gap-2 text-lg"
+                     onClick={() => {
+                       setMode("register");
+                       setError("");
+                       setPin("");
+                     }}
+                   >
+                     <UserPlus className="w-5 h-5" />
+                     Novo membro da família
+                   </Button>
+                 </div>
+               )}
+ 
+               {/* Show add member option when there are some members but less than 2 */}
+               {members.length > 0 && members.length < 2 && (
                 <>
-                  {members.length > 0 && (
-                    <div className="relative my-6">
-                      <div className="absolute inset-0 flex items-center">
-                        <div className="w-full border-t border-border" />
-                      </div>
-                      <div className="relative flex justify-center text-xs uppercase">
-                        <span className="bg-background px-2 text-muted-foreground">
-                          ou
-                        </span>
-                      </div>
+                   <div className="relative my-6">
+                     <div className="absolute inset-0 flex items-center">
+                       <div className="w-full border-t border-border" />
                     </div>
-                  )}
+                     <div className="relative flex justify-center text-xs uppercase">
+                       <span className="bg-background px-2 text-muted-foreground">
+                         ou
+                       </span>
+                     </div>
+                   </div>
 
                   <Button
                     variant="default"
@@ -168,6 +210,22 @@ export function LoginPage() {
               animate={{ opacity: 1 }}
               className="space-y-6"
             >
+               {/* Show name input if no member was selected (manual login) */}
+               {!selectedMember && (
+                 <div className="space-y-2">
+                   <Label htmlFor="loginName">Seu nome</Label>
+                   <Input
+                     id="loginName"
+                     placeholder="Digite seu nome cadastrado"
+                     value={loginName}
+                     onChange={(e) => setLoginName(e.target.value)}
+                     disabled={isSubmitting}
+                     className="h-12 text-lg"
+                     autoFocus
+                   />
+                 </div>
+               )}
+ 
               <div className="text-center">
                 <Label className="text-sm text-muted-foreground">
                   Digite seu PIN de 4 números
@@ -197,7 +255,7 @@ export function LoginPage() {
                 <Button
                   className="w-full h-12 gap-2"
                   onClick={handleLogin}
-                  disabled={isSubmitting || pin.length !== 4}
+                   disabled={isSubmitting || pin.length !== 4 || (!selectedMember && !loginName.trim())}
                 >
                   {isSubmitting ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
