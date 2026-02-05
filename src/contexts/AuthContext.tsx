@@ -40,7 +40,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const fetchMembers = async () => {
     const { data, error } = await supabase
-      .from("family_members")
+      .from("family_members_safe")
       .select("id, name, created_at")
       .order("created_at", { ascending: true });
 
@@ -58,7 +58,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           const member = JSON.parse(saved) as FamilyMember;
           // Verify member still exists
           const { data } = await supabase
-            .from("family_members")
+            .from("family_members_safe")
             .select("id, name, created_at")
             .eq("id", member.id)
             .single();
@@ -85,24 +85,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const pinHash = hashPin(pin);
 
+      // Use secure RPC function to verify PIN without exposing hash
       const { data, error } = await supabase
-        .from("family_members")
-        .select("id, name, created_at, pin_hash")
-        .eq("name", name)
-        .single();
+        .rpc("verify_member_pin", {
+          member_name: name,
+          pin_hash_input: pinHash,
+        });
 
-      if (error || !data) {
-        return { success: false, error: "Nome não encontrado" };
+      if (error) {
+        console.error("Login error:", error);
+        return { success: false, error: "Erro ao fazer login" };
       }
 
-      if (data.pin_hash !== pinHash) {
-        return { success: false, error: "PIN incorreto" };
+      if (!data || data.length === 0) {
+        return { success: false, error: "Nome ou PIN incorreto" };
       }
 
+      const memberData = data[0];
       const member: FamilyMember = {
-        id: data.id,
-        name: data.name,
-        created_at: data.created_at,
+        id: memberData.id,
+        name: memberData.name,
+        created_at: memberData.created_at,
       };
 
       setCurrentMember(member);
