@@ -113,6 +113,13 @@ export type Database = {
             referencedRelation: "family_members"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "goals_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "family_members_safe"
+            referencedColumns: ["id"]
+          },
         ]
       }
       transactions: {
@@ -166,14 +173,48 @@ export type Database = {
             referencedRelation: "family_members"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "transactions_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "family_members_safe"
+            referencedColumns: ["id"]
+          },
         ]
       }
     }
     Views: {
-      [_ in never]: never
+      family_members_safe: {
+        Row: {
+          created_at: string | null
+          id: string | null
+          name: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string | null
+          name?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string | null
+          name?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
-      [_ in never]: never
+      verify_member_pin: {
+        Args: { member_name: string; pin_hash_input: string }
+        Returns: {
+          created_at: string
+          id: string
+          name: string
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never
