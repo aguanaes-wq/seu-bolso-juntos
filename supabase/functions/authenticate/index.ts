@@ -1,5 +1,5 @@
  import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
- import * as bcrypt from "https://deno.land/x/bcrypt@v0.4.1/mod.ts";
+ import bcrypt from "bcryptjs";
  import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
  
  const corsHeaders = {
@@ -121,7 +121,7 @@
        }
        
        // Verify PIN with bcrypt
-       const pinValid = await bcrypt.compare(pin, member.pin_hash);
+         const pinValid = bcrypt.compareSync(pin, member.pin_hash);
        if (!pinValid) {
          console.log("Invalid PIN for:", name);
          return new Response(JSON.stringify({ error: "Nome ou PIN incorreto" }), {
@@ -168,7 +168,7 @@
        }
        
        // Hash PIN with bcrypt (server-side)
-       const pinHash = await bcrypt.hash(pin);
+         const pinHash = bcrypt.hashSync(pin, 10);
        
        // Insert new member
        const { data: newMember, error: insertError } = await supabase
