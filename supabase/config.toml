@@ -2,3 +2,6 @@ project_id = "toxwtrktifugibiowvpl"
 
 [functions.financial-chat]
 verify_jwt = false
+ 
+ [functions.authenticate]
+ verify_jwt = false

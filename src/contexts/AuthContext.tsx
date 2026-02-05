@@ -9,6 +9,7 @@ export interface FamilyMember {
 
 interface AuthContextType {
   currentMember: FamilyMember | null;
+   sessionToken: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
   login: (name: string, pin: string) => Promise<{ success: boolean; error?: string }>;
@@ -20,21 +21,15 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Simple hash function for PIN (client-side - not cryptographically secure but ok for family app)
-function hashPin(pin: string): string {
-  let hash = 0;
-  for (let i = 0; i < pin.length; i++) {
-    const char = pin.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
-    hash = hash & hash;
-  }
-  return hash.toString(36);
-}
-
-const MEMBER_STORAGE_KEY = "family_member";
+ const SESSION_TOKEN_KEY = "family_session_token";
+ const MEMBER_STORAGE_KEY = "family_member_cache";
+ 
+ // Get the Supabase URL for edge function calls
+ const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [currentMember, setCurrentMember] = useState<FamilyMember | null>(null);
+   const [sessionToken, setSessionToken] = useState<string | null>(null);
   const [members, setMembers] = useState<FamilyMember[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -51,65 +46,68 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Load saved member on mount
   useEffect(() => {
-    const loadSavedMember = async () => {
+     const verifySession = async () => {
       try {
-        const saved = localStorage.getItem(MEMBER_STORAGE_KEY);
-        if (saved) {
-          const member = JSON.parse(saved) as FamilyMember;
-          // Verify member still exists
-          const { data } = await supabase
-            .from("family_members_safe")
-            .select("id, name, created_at")
-            .eq("id", member.id)
-            .single();
-
-          if (data) {
-            setCurrentMember(data);
+         const savedToken = localStorage.getItem(SESSION_TOKEN_KEY);
+         if (savedToken) {
+           // Verify session with server
+           const response = await fetch(`${SUPABASE_URL}/functions/v1/authenticate`, {
+             method: "POST",
+             headers: { "Content-Type": "application/json" },
+             body: JSON.stringify({ action: "verify", token: savedToken }),
+           });
+ 
+           if (response.ok) {
+             const data = await response.json();
+             if (data.valid && data.member) {
+               setCurrentMember(data.member);
+               setSessionToken(savedToken);
+             } else {
+               // Invalid session, clear storage
+               localStorage.removeItem(SESSION_TOKEN_KEY);
+               localStorage.removeItem(MEMBER_STORAGE_KEY);
+             }
           } else {
-            localStorage.removeItem(MEMBER_STORAGE_KEY);
+             // Session verification failed
+             localStorage.removeItem(SESSION_TOKEN_KEY);
+             localStorage.removeItem(MEMBER_STORAGE_KEY);
           }
         }
       } catch (err) {
-        console.error("Error loading saved member:", err);
+         console.error("Error verifying session:", err);
+         localStorage.removeItem(SESSION_TOKEN_KEY);
         localStorage.removeItem(MEMBER_STORAGE_KEY);
       } finally {
         setIsLoading(false);
       }
     };
 
-    loadSavedMember();
+     verifySession();
     fetchMembers();
   }, []);
 
   const login = async (name: string, pin: string): Promise<{ success: boolean; error?: string }> => {
     try {
-      const pinHash = hashPin(pin);
-
-      // Use secure RPC function to verify PIN without exposing hash
-      const { data, error } = await supabase
-        .rpc("verify_member_pin", {
-          member_name: name,
-          pin_hash_input: pinHash,
-        });
-
-      if (error) {
-        console.error("Login error:", error);
-        return { success: false, error: "Erro ao fazer login" };
+       const response = await fetch(`${SUPABASE_URL}/functions/v1/authenticate`, {
+         method: "POST",
+         headers: { "Content-Type": "application/json" },
+         body: JSON.stringify({ action: "login", name, pin }),
+       });
+ 
+       const data = await response.json();
+ 
+       if (!response.ok) {
+         return { success: false, error: data.error || "Erro ao fazer login" };
       }
 
-      if (!data || data.length === 0) {
-        return { success: false, error: "Nome ou PIN incorreto" };
+       if (!data.token || !data.member) {
+         return { success: false, error: "Resposta inválida do servidor" };
       }
 
-      const memberData = data[0];
-      const member: FamilyMember = {
-        id: memberData.id,
-        name: memberData.name,
-        created_at: memberData.created_at,
-      };
-
-      setCurrentMember(member);
-      localStorage.setItem(MEMBER_STORAGE_KEY, JSON.stringify(member));
+       setCurrentMember(data.member);
+       setSessionToken(data.token);
+       localStorage.setItem(SESSION_TOKEN_KEY, data.token);
+       localStorage.setItem(MEMBER_STORAGE_KEY, JSON.stringify(data.member));
       await fetchMembers();
 
       return { success: true };
@@ -125,29 +123,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return { success: false, error: "PIN deve ter 4 números" };
       }
 
-      const pinHash = hashPin(pin);
-
-      const { data, error } = await supabase
-        .from("family_members")
-        .insert({ name, pin_hash: pinHash })
-        .select("id, name, created_at")
-        .single();
-
-      if (error) {
-        if (error.code === "23505") {
-          return { success: false, error: "Nome já cadastrado" };
-        }
-        throw error;
+       const response = await fetch(`${SUPABASE_URL}/functions/v1/authenticate`, {
+         method: "POST",
+         headers: { "Content-Type": "application/json" },
+         body: JSON.stringify({ action: "register", name, pin }),
+       });
+ 
+       const data = await response.json();
+ 
+       if (!response.ok) {
+         return { success: false, error: data.error || "Erro ao cadastrar" };
       }
 
-      const member: FamilyMember = {
-        id: data.id,
-        name: data.name,
-        created_at: data.created_at,
-      };
-
-      setCurrentMember(member);
-      localStorage.setItem(MEMBER_STORAGE_KEY, JSON.stringify(member));
+       if (!data.token || !data.member) {
+         return { success: false, error: "Resposta inválida do servidor" };
+       }
+ 
+       setCurrentMember(data.member);
+       setSessionToken(data.token);
+       localStorage.setItem(SESSION_TOKEN_KEY, data.token);
+       localStorage.setItem(MEMBER_STORAGE_KEY, JSON.stringify(data.member));
       await fetchMembers();
 
       return { success: true };
@@ -157,8 +152,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const logout = () => {
+   const logout = async () => {
+     // Invalidate session on server
+     if (sessionToken) {
+       try {
+         await fetch(`${SUPABASE_URL}/functions/v1/authenticate`, {
+           method: "POST",
+           headers: { "Content-Type": "application/json" },
+           body: JSON.stringify({ action: "logout", token: sessionToken }),
+         });
+       } catch (err) {
+         console.error("Error logging out:", err);
+       }
+     }
+     
     setCurrentMember(null);
+     setSessionToken(null);
+     localStorage.removeItem(SESSION_TOKEN_KEY);
     localStorage.removeItem(MEMBER_STORAGE_KEY);
   };
 
@@ -166,6 +176,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     <AuthContext.Provider
       value={{
         currentMember,
+         sessionToken,
         isAuthenticated: !!currentMember,
         isLoading,
         login,

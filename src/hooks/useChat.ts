@@ -225,10 +225,16 @@ export function useChat() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
-  const { currentMember } = useAuth();
+   const { currentMember, sessionToken } = useAuth();
 
   const sendMessage = useCallback(async (content: string, imageBase64?: string) => {
     setError(null);
+     
+     // Require authentication
+     if (!sessionToken) {
+       setError("Você precisa fazer login para usar o chat.");
+       return;
+     }
 
     // Add user message
     const userMessage: Message = {
@@ -254,7 +260,6 @@ export function useChat() {
 
       const requestBody: Record<string, unknown> = {
         messages: [...history, { role: "user", content }],
-        memberName: currentMember?.name || "Você",
       };
 
       // Add image if provided
@@ -266,13 +271,16 @@ export function useChat() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+           "x-session-token": sessionToken,
         },
         body: JSON.stringify(requestBody),
         signal: abortControllerRef.current.signal,
       });
 
       if (!response.ok) {
+         if (response.status === 401) {
+           throw new Error("Sessão expirada. Por favor, faça login novamente.");
+         }
         if (response.status === 429) {
           throw new Error("Muitas requisições. Aguarde um momento e tente novamente.");
         }
@@ -390,7 +398,7 @@ export function useChat() {
       setIsLoading(false);
       abortControllerRef.current = null;
     }
-  }, [messages, currentMember]);
+   }, [messages, currentMember, sessionToken]);
 
   const clearMessages = useCallback(() => {
     setMessages([]);
