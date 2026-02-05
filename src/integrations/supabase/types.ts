@@ -122,6 +122,45 @@ export type Database = {
           },
         ]
       }
+      sessions: {
+        Row: {
+          created_at: string
+          expires_at: string
+          id: string
+          member_id: string
+          token: string
+        }
+        Insert: {
+          created_at?: string
+          expires_at?: string
+          id?: string
+          member_id: string
+          token: string
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string
+          id?: string
+          member_id?: string
+          token?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sessions_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "family_members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sessions_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "family_members_safe"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       transactions: {
         Row: {
           amount: number
@@ -207,6 +246,19 @@ export type Database = {
       }
     }
     Functions: {
+      cleanup_expired_sessions: { Args: never; Returns: undefined }
+      create_session: {
+        Args: { p_member_id: string; p_token: string }
+        Returns: undefined
+      }
+      delete_session: { Args: { session_token: string }; Returns: undefined }
+      validate_session: {
+        Args: { session_token: string }
+        Returns: {
+          member_id: string
+          member_name: string
+        }[]
+      }
       verify_member_pin: {
         Args: { member_name: string; pin_hash_input: string }
         Returns: {

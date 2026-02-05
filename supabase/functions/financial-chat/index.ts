@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -16,6 +17,24 @@ const PAYMENT_METHODS = [
   "VR Refeição"
 ];
 
+ // Rate limiting: max 20 requests per member per minute
+ const rateLimitMap = new Map<string, number[]>();
+ const RATE_LIMIT = 20;
+ const WINDOW_MS = 60000;
+ 
+ function checkRateLimit(memberId: string): boolean {
+   const now = Date.now();
+   const requests = rateLimitMap.get(memberId) || [];
+   const recentRequests = requests.filter(t => now - t < WINDOW_MS);
+   
+   if (recentRequests.length >= RATE_LIMIT) {
+     return false;
+   }
+   
+   rateLimitMap.set(memberId, [...recentRequests, now]);
+   return true;
+ }
+ 
 const SYSTEM_PROMPT = `Você é o AGENTE FINANCEIRO FAMILIAR, um assistente conversacional para controle de finanças pessoais compartilhadas (casal/família) com DESIGN UNIVERSAL.
 
 MISSÃO: Ajudar duas pessoas a registrar gastos de forma simples, via chat em linguagem natural, organizar automaticamente as transações, acompanhar metas e oferecer insights úteis — com clareza, acessibilidade e tolerância a erros.
@@ -138,7 +157,57 @@ serve(async (req) => {
   }
 
   try {
-    const { messages, memberName, image } = await req.json();
+     // Validate session token
+     const authHeader = req.headers.get("x-session-token");
+     if (!authHeader) {
+       console.error("No session token provided");
+       return new Response(
+         JSON.stringify({ error: "Não autorizado. Por favor, faça login novamente." }),
+         {
+           status: 401,
+           headers: { ...corsHeaders, "Content-Type": "application/json" },
+         }
+       );
+     }
+ 
+     // Verify session using service role
+     const supabase = createClient(
+       Deno.env.get("SUPABASE_URL")!,
+       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+     );
+ 
+     const { data: sessionData, error: sessionError } = await supabase.rpc(
+       "validate_session",
+       { session_token: authHeader }
+     );
+ 
+     if (sessionError || !sessionData || sessionData.length === 0) {
+       console.error("Invalid session:", sessionError);
+       return new Response(
+         JSON.stringify({ error: "Sessão inválida ou expirada. Por favor, faça login novamente." }),
+         {
+           status: 401,
+           headers: { ...corsHeaders, "Content-Type": "application/json" },
+         }
+       );
+     }
+ 
+     const memberId = sessionData[0].member_id;
+     const memberName = sessionData[0].member_name;
+ 
+     // Check rate limit
+     if (!checkRateLimit(memberId)) {
+       console.warn("Rate limit exceeded for member:", memberId);
+       return new Response(
+         JSON.stringify({ error: "Muitas requisições. Aguarde um minuto e tente novamente." }),
+         {
+           status: 429,
+           headers: { ...corsHeaders, "Content-Type": "application/json" },
+         }
+       );
+     }
+ 
+     const { messages, image } = await req.json();
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) {
@@ -147,6 +216,7 @@ serve(async (req) => {
     }
 
     console.log("Processing chat request with", messages.length, "messages");
+     console.log("Authenticated member:", memberName, "(ID:", memberId, ")");
     if (image) {
       console.log("Image attached to request");
     }
@@ -154,7 +224,7 @@ serve(async (req) => {
     // Prepare messages with member context
     const systemPromptWithMember = SYSTEM_PROMPT.replace(
       'person":"nome do membro"',
-      `person":"${memberName || 'Você'}"`
+       `person":"${memberName}"`
     );
 
     // Build request messages
