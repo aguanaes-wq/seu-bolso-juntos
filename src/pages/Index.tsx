@@ -31,7 +31,7 @@ function MainApp() {
       case "chat":
         return <ChatView />;
       case "dashboard":
-        return <DashboardView />;
+        return <DashboardView onNavigateToHistory={() => setActiveTab("history")} />;
       case "goals":
         return <GoalsView />;
       case "history":

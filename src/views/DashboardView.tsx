@@ -3,6 +3,10 @@ import { TrendingUp, TrendingDown, Wallet, ArrowRight, Loader2 } from "lucide-re
 import { cn } from "@/lib/utils";
 import { useFinance } from "@/contexts/FinanceContext";
 
+interface DashboardViewProps {
+  onNavigateToHistory?: () => void;
+}
+
 function formatCurrency(value: number) {
   return new Intl.NumberFormat("pt-BR", {
     style: "currency",
@@ -10,7 +14,7 @@ function formatCurrency(value: number) {
   }).format(value);
 }
 
-export function DashboardView() {
+export function DashboardView({ onNavigateToHistory }: DashboardViewProps) {
   const { summary, categoryBreakdown, transactionsLoading } = useFinance();
   const { income, expenses, balance } = summary;
   const isPositive = balance >= 0;
@@ -105,7 +109,10 @@ export function DashboardView() {
         >
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-semibold text-foreground">Principais gastos</h3>
-            <button className="flex items-center gap-1 text-sm text-primary font-medium">
+            <button 
+              onClick={onNavigateToHistory}
+              className="flex items-center gap-1 text-sm text-primary font-medium hover:underline"
+            >
               Ver tudo <ArrowRight className="w-4 h-4" />
             </button>
           </div>
