@@ -225,16 +225,29 @@ export function useChat() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
-   const { currentMember, sessionToken } = useAuth();
+  const messagesRef = useRef<Message[]>([]);
+  const isProcessingRef = useRef(false);
+  const { currentMember, sessionToken } = useAuth();
+
+  // Keep ref in sync with state
+  messagesRef.current = messages;
 
   const sendMessage = useCallback(async (content: string, imageBase64?: string) => {
+    // Prevent duplicate submissions
+    if (isProcessingRef.current) {
+      console.log("Already processing a message, ignoring duplicate call");
+      return;
+    }
+    
+    isProcessingRef.current = true;
     setError(null);
      
-     // Require authentication
-     if (!sessionToken) {
-       setError("Você precisa fazer login para usar o chat.");
-       return;
-     }
+    // Require authentication
+    if (!sessionToken) {
+      setError("Você precisa fazer login para usar o chat.");
+      isProcessingRef.current = false;
+      return;
+    }
 
     // Add user message
     const userMessage: Message = {
@@ -249,8 +262,8 @@ export function useChat() {
     setMessages((prev) => [...prev, userMessage]);
     setIsLoading(true);
 
-    // Prepare message history for API
-    const history = messages.map((m) => ({
+    // Prepare message history for API using ref to avoid stale closure
+    const history = messagesRef.current.map((m) => ({
       role: m.type === "user" ? "user" : "assistant",
       content: m.content,
     }));
@@ -377,6 +390,7 @@ export function useChat() {
 
     } catch (err) {
       if (err instanceof Error && err.name === "AbortError") {
+        isProcessingRef.current = false;
         return;
       }
       const errorMessage =
@@ -396,9 +410,10 @@ export function useChat() {
       ]);
     } finally {
       setIsLoading(false);
+      isProcessingRef.current = false;
       abortControllerRef.current = null;
     }
-   }, [messages, currentMember, sessionToken]);
+  }, [currentMember, sessionToken]);
 
   const clearMessages = useCallback(() => {
     setMessages([]);
