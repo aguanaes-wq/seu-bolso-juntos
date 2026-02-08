@@ -152,13 +152,13 @@ Este projeto foi construído com:
 
 ## Imagens de tela
 
-<img width="351" height="781" alt="image" src="https://github.com/user-attachments/assets/3c811f97-952a-4059-9381-0366d13ba91d" />
+<img width="361" height="805" alt="image" src="https://github.com/user-attachments/assets/ea76624e-4a7e-493f-9dba-4bb38506eaca" />
 
-<img width="353" height="782" alt="image" src="https://github.com/user-attachments/assets/622a2970-89d3-4337-a5aa-6bc9742d022f" />
+<img width="366" height="807" alt="image" src="https://github.com/user-attachments/assets/9df1aef4-aac5-4952-89b4-12b2b292d9e5" />
 
-<img width="350" height="782" alt="image" src="https://github.com/user-attachments/assets/f6ba388c-2e63-4933-8fc5-f4e42c9ec07e" />
+<img width="358" height="810" alt="image" src="https://github.com/user-attachments/assets/c8fc8efa-0613-4b53-818a-86e2c6ae5d9a" />
 
-<img width="347" height="780" alt="image" src="https://github.com/user-attachments/assets/6801091b-c4ad-40d5-bdf1-ea3134bb787d" />
+<img width="361" height="813" alt="image" src="https://github.com/user-attachments/assets/9c733ddc-e79d-4908-b4cc-3d8007c89761" />
 
 ## O que o app faz?
 
