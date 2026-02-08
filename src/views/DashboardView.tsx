@@ -1,7 +1,11 @@
+import { useState, useMemo } from "react";
 import { motion } from "framer-motion";
-import { TrendingUp, TrendingDown, Wallet, ArrowRight, Loader2 } from "lucide-react";
+import { TrendingUp, TrendingDown, Wallet, ArrowRight, Loader2, ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useFinance } from "@/contexts/FinanceContext";
+import { Button } from "@/components/ui/button";
+import { startOfMonth, endOfMonth, addMonths, subMonths, format, isWithinInterval, parseISO } from "date-fns";
+import { ptBR } from "date-fns/locale";
 
 interface DashboardViewProps {
   onNavigateToHistory?: () => void;
@@ -15,22 +19,56 @@ function formatCurrency(value: number) {
 }
 
 export function DashboardView({ onNavigateToHistory }: DashboardViewProps) {
-  const { summary, categoryBreakdown, transactionsLoading } = useFinance();
-  const { income, expenses, balance } = summary;
+  const { transactions, transactionsLoading } = useFinance();
+  const [selectedMonth, setSelectedMonth] = useState(new Date());
+
+  // Filter transactions by selected month
+  const monthlyData = useMemo(() => {
+    const monthStart = startOfMonth(selectedMonth);
+    const monthEnd = endOfMonth(selectedMonth);
+
+    const filtered = transactions.filter((t) => {
+      const transactionDate = parseISO(t.date);
+      return isWithinInterval(transactionDate, { start: monthStart, end: monthEnd });
+    });
+
+    const income = filtered
+      .filter((t) => t.type === "income")
+      .reduce((sum, t) => sum + Number(t.amount), 0);
+
+    const expenses = filtered
+      .filter((t) => t.type === "expense")
+      .reduce((sum, t) => sum + Number(t.amount), 0);
+
+    const categoryBreakdown = filtered
+      .filter((t) => t.type === "expense")
+      .reduce((acc, t) => {
+        acc[t.category] = (acc[t.category] || 0) + Number(t.amount);
+        return acc;
+      }, {} as Record<string, number>);
+
+    return { income, expenses, balance: income - expenses, categoryBreakdown };
+  }, [transactions, selectedMonth]);
+
+  const { income, expenses, balance, categoryBreakdown } = monthlyData;
   const isPositive = balance >= 0;
 
-  // Convert category breakdown to array and sort
-  const topCategories = Object.entries(categoryBreakdown)
+  // Convert category breakdown to array and sort - show ALL categories
+  const allCategories = Object.entries(categoryBreakdown)
     .map(([name, amount]) => ({
       name,
       amount,
       percentage: expenses > 0 ? Math.round((amount / expenses) * 100) : 0,
     }))
-    .sort((a, b) => b.amount - a.amount)
-    .slice(0, 4);
+    .sort((a, b) => b.amount - a.amount);
 
-  const currentMonth = new Date().toLocaleDateString("pt-BR", { month: "long" });
-  const capitalizedMonth = currentMonth.charAt(0).toUpperCase() + currentMonth.slice(1);
+  const monthLabel = format(selectedMonth, "MMMM 'de' yyyy", { locale: ptBR });
+  const capitalizedMonth = monthLabel.charAt(0).toUpperCase() + monthLabel.slice(1);
+
+  const goToPreviousMonth = () => setSelectedMonth((prev) => subMonths(prev, 1));
+  const goToNextMonth = () => setSelectedMonth((prev) => addMonths(prev, 1));
+
+  const isCurrentMonth = format(selectedMonth, "yyyy-MM") === format(new Date(), "yyyy-MM");
 
   if (transactionsLoading) {
     return (
@@ -42,24 +80,43 @@ export function DashboardView({ onNavigateToHistory }: DashboardViewProps) {
 
   return (
     <div className="flex-1 overflow-y-auto px-4 py-6 space-y-6 pb-24">
-      {/* Header */}
+      {/* Month Navigation */}
       <motion.div
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
-        className="text-center"
+        className="flex items-center justify-between"
       >
-        <p className="text-sm text-muted-foreground mb-1">Resumo de {capitalizedMonth}</p>
-        <h2 className="text-3xl font-bold text-foreground">
-          {formatCurrency(balance)}
-        </h2>
-        <p
-          className={cn(
-            "text-sm font-medium mt-1",
-            isPositive ? "text-income" : "text-expense"
-          )}
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={goToPreviousMonth}
+          className="h-10 w-10 rounded-full"
         >
-          {isPositive ? "Saldo positivo" : "Saldo negativo"}
-        </p>
+          <ChevronLeft className="h-5 w-5" />
+        </Button>
+        <div className="text-center">
+          <p className="text-sm text-muted-foreground mb-1">{capitalizedMonth}</p>
+          <h2 className="text-3xl font-bold text-foreground">
+            {formatCurrency(balance)}
+          </h2>
+          <p
+            className={cn(
+              "text-sm font-medium mt-1",
+              isPositive ? "text-income" : "text-expense"
+            )}
+          >
+            {isPositive ? "Saldo positivo" : "Saldo negativo"}
+          </p>
+        </div>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={goToNextMonth}
+          disabled={isCurrentMonth}
+          className="h-10 w-10 rounded-full"
+        >
+          <ChevronRight className="h-5 w-5" />
+        </Button>
       </motion.div>
 
       {/* Income / Expenses cards */}
@@ -99,8 +156,8 @@ export function DashboardView({ onNavigateToHistory }: DashboardViewProps) {
         </motion.div>
       </div>
 
-      {/* Top categories */}
-      {topCategories.length > 0 && (
+      {/* All categories */}
+      {allCategories.length > 0 && (
         <motion.div
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
@@ -108,7 +165,7 @@ export function DashboardView({ onNavigateToHistory }: DashboardViewProps) {
           className="bg-card rounded-2xl border border-border p-4"
         >
           <div className="flex items-center justify-between mb-4">
-            <h3 className="font-semibold text-foreground">Principais gastos</h3>
+            <h3 className="font-semibold text-foreground">Gastos por categoria</h3>
             <button 
               onClick={onNavigateToHistory}
               className="flex items-center gap-1 text-sm text-primary font-medium hover:underline"
@@ -118,12 +175,12 @@ export function DashboardView({ onNavigateToHistory }: DashboardViewProps) {
           </div>
 
           <div className="space-y-3">
-            {topCategories.map((category, index) => (
+            {allCategories.map((category, index) => (
               <motion.div
                 key={category.name}
                 initial={{ opacity: 0, x: -8 }}
                 animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.25 + index * 0.05 }}
+                transition={{ delay: 0.25 + index * 0.03 }}
                 className="flex items-center gap-3"
               >
                 <div className="flex-1">
@@ -131,15 +188,20 @@ export function DashboardView({ onNavigateToHistory }: DashboardViewProps) {
                     <span className="text-sm font-medium text-foreground">
                       {category.name}
                     </span>
-                    <span className="text-sm text-muted-foreground">
-                      {formatCurrency(category.amount)}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-muted-foreground">
+                        {category.percentage}%
+                      </span>
+                      <span className="text-sm font-medium text-foreground">
+                        {formatCurrency(category.amount)}
+                      </span>
+                    </div>
                   </div>
                   <div className="h-2 bg-muted rounded-full overflow-hidden">
                     <motion.div
                       initial={{ width: 0 }}
                       animate={{ width: `${category.percentage}%` }}
-                      transition={{ delay: 0.4 + index * 0.05, duration: 0.5 }}
+                      transition={{ delay: 0.4 + index * 0.03, duration: 0.5 }}
                       className="h-full bg-primary rounded-full"
                     />
                   </div>
@@ -151,7 +213,7 @@ export function DashboardView({ onNavigateToHistory }: DashboardViewProps) {
       )}
 
       {/* Empty state */}
-      {topCategories.length === 0 && (
+      {allCategories.length === 0 && (
         <motion.div
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
@@ -159,9 +221,11 @@ export function DashboardView({ onNavigateToHistory }: DashboardViewProps) {
           className="bg-card rounded-2xl border border-border p-6 text-center"
         >
           <Wallet className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
-          <h3 className="font-semibold text-foreground mb-1">Nenhum gasto ainda</h3>
+          <h3 className="font-semibold text-foreground mb-1">Nenhum gasto neste mês</h3>
           <p className="text-sm text-muted-foreground">
-            Registre transações no chat para ver o resumo aqui.
+            {isCurrentMonth 
+              ? "Registre transações no chat para ver o resumo aqui."
+              : "Não há transações registradas para este período."}
           </p>
         </motion.div>
       )}
