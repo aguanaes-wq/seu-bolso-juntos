@@ -79,7 +79,7 @@ export function DashboardView({ onNavigateToHistory }: DashboardViewProps) {
   }
 
   return (
-    <div className="flex-1 overflow-y-auto px-4 py-6 space-y-6 pb-24">
+    <div className="h-full overflow-y-auto px-4 py-6 space-y-6 pb-24">
       {/* Month Navigation */}
       <motion.div
         initial={{ opacity: 0, y: 12 }}
